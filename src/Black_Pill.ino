@@ -682,6 +682,7 @@ void updateVibrato_Rate(boolean announce) {
   midiCCOut(CCVibrato_Rate, Vibrato_Rate);
 }
 
+
 void updateAuto_Pitch_Attack(boolean announce) {
   if (announce && !suppressParamAnnounce) {
     showCurrentParameterPage("Auto Pitch Attack", Auto_Pitch_Attack);
@@ -758,9 +759,23 @@ void updateAmp_Velocity_Depth(boolean announce) {
   midiCCOut(CCAmp_Velocity_Depth, Amp_Velocity_Depth);
 }
 
+String autoSignedCentred(int v) {        // v is 0..127, 64 = dead centre
+  int d = 0;
+  if (v == 64) {
+    d = 0;
+  }
+  if (v > 64) {
+    d = map(v, 65, 127, 1, 48);
+  }
+  if (v < 64) {
+    d = map(v, 0, 63, -48, -1);
+  }
+  return (d > 0) ? "+" + String(d) : String(d);
+}
+
 void updateAuto_Pitch_Depth(boolean announce) {
   if (announce && !suppressParamAnnounce) {
-    showCurrentParameterPage("Auto Pitch Depth", Auto_Pitch_Depth);
+    showCurrentParameterPage("Auto Pitch Depth", autoSignedCentred(Auto_Pitch_Depth));
     startParameterDisplay();
   }
 
