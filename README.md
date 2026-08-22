@@ -8,7 +8,7 @@ All controls and a few extra ones are faithfully recreated on the front panel ba
 
 ![GUI](photos/BP_GUI.jpg)
 
-The synth was created by SyntheTech about 3 years ago.
+The synth was created by Blaine at SyntheTech about 3 years ago.
 
 https://www.youtube.com/playlist?list=PLOjbFVchrTEwZxvj6SVQajDWHEZU-pO4-
 
