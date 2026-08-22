@@ -82,7 +82,7 @@ ADC *adc = new ADC();
 #define MUX6_PWM_Depth_LFO 4
 #define MUX6_Filter_LFO_Wave 5
 #define MUX6_Filter_LFO_Rate 6
-#define MUX6_AT_Filter_Depth 7
+#define MUX6_PitchBend_Depth 7
 
 // Buttons
 

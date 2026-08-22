@@ -76,7 +76,7 @@
 #define CCDuty_Cycle_Waveshape 99   // (Most Square or Waveshaper voices.)
 
 #define CCAT_VCO_Depth 100          // AT depth to VCO (not part of synth
-#define CCAT_Filter_Depth 101       // AT depth to VCF (not part of synth
+#define CCPitchBend_Depth 101       // PitchBend Depth
 #define CCFilter_LFO_Wave_SW 102 
 
 

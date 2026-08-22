@@ -406,8 +406,14 @@ void myNoteOff(byte channel, byte note, byte velocity) {
 }
 
 void DinHandlePitchBend(byte channel, int pitch) {
-  MIDI.sendPitchBend(pitch, midiOutCh);
+  int range  = constrain(PitchBend_Depth, 0, 6);   // repurposed: 0..6 semitones
+  int scaled = (pitch * range) / 6;             // 6 -> unchanged, 0 -> dead
+  MIDI.sendPitchBend(scaled, midiOutCh);
 }
+
+// void DinHandlePitchBend(byte channel, int pitch) {
+//   MIDI.sendPitchBend(pitch, midiOutCh);
+// }
 
 void allNotesOff() {
   midiCCOut(CCallnotesoff, 127);
@@ -564,21 +570,18 @@ void updateAmp_LFO_Depth(boolean announce) {
 void updateAT_VCO_Depth(boolean announce) {
 
   if (announce && !suppressParamAnnounce) {
-    showCurrentParameterPage("AT VCO VIB Depth", AT_VCO_Depth);
+    showCurrentParameterPage("AT Depth", AT_VCO_Depth);
     startParameterDisplay();
   }
-
-  // to do, control the AT based on this depth
 }
 
-void updateAT_VCF_Depth(boolean announce) {
+void updatePitchBend_Depth(boolean announce) {
 
   if (announce && !suppressParamAnnounce) {
-    showCurrentParameterPage("AT VCF TM Depth", AT_VCF_Depth);
+    showCurrentParameterPage("PitchBend Range", PitchBend_Depth);
     startParameterDisplay();
   }
 
-  // to do, control the AT based on this depth
 }
 
 void updatePWM_Depth_LFO(boolean announce) {
@@ -1345,9 +1348,9 @@ void myControlChange(byte channel, byte control, byte value) {
       updatePhaser_Rate(1);
       break;
 
-    case CCAT_Filter_Depth:
-      AT_VCF_Depth = value;
-      updateAT_VCF_Depth(1);
+    case CCPitchBend_Depth:
+      PitchBend_Depth = map(value, 0, 127, 0, 6);
+      updatePitchBend_Depth(1);
       break;
 
     case CCPWM_Depth_LFO:
@@ -1571,38 +1574,11 @@ void myProgramChange(byte channel, byte program) {
   state = PARAMETER;
 }
 
-
 void myAfterTouch(byte channel, byte value) {
-
-  // uint8_t afterTouchU = (value * upperData[P_ATDepth] + 5) / 10;
-  // uint8_t afterTouchL = (value * lowerData[P_ATDepth] + 5) / 10;
-
-  // switch (upperData[P_AfterTouchDest]) {
-  //   case 1:
-  //     if (!wholemode) {
-  //       midiCCOutUpper(CCmodwheel, afterTouchU);
-  //     }
-  //     break;
-  //   case 2:
-  //     if (!wholemode) {
-  //       midiCCOutUpper(CCvcfLfoDepth, afterTouchU);
-  //     }
-  //     break;
-  // }
-  // switch (lowerData[P_AfterTouchDest]) {
-  //   case 1:
-  //     midiCCOutLower(CCmodwheel, afterTouchL);
-  //     if (wholemode) {
-  //       midiCCOutUpper(CCmodwheel, afterTouchL);
-  //     }
-  //     break;
-  //   case 2:
-  //     midiCCOutLower(CCvcfLfoDepth, afterTouchL);
-  //     if (wholemode) {
-  //       midiCCOutUpper(CCvcfLfoDepth, afterTouchL);
-  //     }
-  //     break;
-  // }
+  // Scale incoming pressure (0..127) by the AT depth control (0..127).
+  // +63 rounds to nearest instead of truncating.
+  uint8_t atDepth = (value * AT_VCO_Depth + 63) / 127;
+  midiCCOut(CCmodwheel, atDepth);        // CC 1 -> mod wheel, routed via Wheel_Mod selects
 }
 
 void recallPatch(int patchNo) {
@@ -1676,7 +1652,7 @@ void setCurrentPatchData(String data[]) {
   Phaser_Rate = data[35].toInt();
   Duty_Cycle_Waveshape = data[36].toInt();
   PWM_Rate = data[37].toInt();
-  AT_VCF_Depth = data[38].toInt();
+  PitchBend_Depth = data[38].toInt();
   Filter_LFO_Depth = data[39].toInt();
   LFO_Velocity_Depth = data[40].toInt();
   Amp_LFO_Depth = data[41].toInt();
@@ -1727,7 +1703,7 @@ void lowerParamsToDisplay() {
   updateKeyTrack_Exponent(0);
   updateAmp_Release(0);
   updateAT_VCO_Depth(0);
-  updateAT_VCF_Depth(0);
+  updatePitchBend_Depth(0);
   updatePWM_Depth_LFO(0);
   updateFilter_LFO_Rate(0);
   updateAmp_LFO_Rate(0);
@@ -1780,7 +1756,7 @@ String getCurrentPatchData() {
          + "," + String(Amp_Decay) + "," + String(Auto_Pitch_Sustain) + "," + String(Filter_Velocity_Depth) + "," + String(Amp_Sustain) + "," + String(KeyTrack_Exponent) + "," + String(Amp_Release)
          + "," + String(AT_VCO_Depth) + "," + String(Delay_Expander_Stereo) + "," + String(Vibrato_Rate) + "," + String(Auto_Pitch_Attack) + "," + String(Auto_Pitch_Decay) + "," + String(Phaser_Wet_Mix)
          + "," + String(Delay_Time) + "," + String(Delay_Feedback) + "," + String(Phaser_Feedback) + "," + String(Delay_Wet_Mix) + "," + String(Phaser_Rate) + "," + String(Duty_Cycle_Waveshape)
-         + "," + String(PWM_Rate) + "," + String(AT_VCF_Depth) + "," + String(Filter_LFO_Depth) + "," + String(LFO_Velocity_Depth) + "," + String(Amp_LFO_Depth) + "," + String(PWM_Depth_LFO)
+         + "," + String(PWM_Rate) + "," + String(PitchBend_Depth) + "," + String(Filter_LFO_Depth) + "," + String(LFO_Velocity_Depth) + "," + String(Amp_LFO_Depth) + "," + String(PWM_Depth_LFO)
          + "," + String(Filter_LFO_Wave) + "," + String(Filter_LFO_Rate) + "," + String(Amp_LFO_Rate) + "," + String(Arpeggiator_Switch) + "," + String(ARP_Hold) + "," + String(ARP_Octave_Plus)
          + "," + String(ARP_Ext_Sync) + "," + String(ARP_Mode) + "," + String(ARP_Note_Length) + "," + String(Filter_Type) + "," + String(KeyTrack_Switch) + "," + String(Legato)
          + "," + String(DelayFX) + "," + String(Phaser_Switch)+ "," + String(Wheel_Mod_1_Select) + "," + String(Wheel_Mod_2_Select) + "," + String(Wheel_Mod_3_Select) + "," + String(Vibr_Amp_LFO_Wave);
@@ -2379,8 +2355,8 @@ void checkMux() {
       case MUX6_Filter_LFO_Rate:
         myControlChange(midiChannel, CCFilter_LFO_Rate, mux6Read);
         break;
-      case MUX6_AT_Filter_Depth:
-        myControlChange(midiChannel, CCAT_Filter_Depth, mux6Read);
+      case MUX6_PitchBend_Depth:
+        myControlChange(midiChannel, CCPitchBend_Depth, mux6Read);
         break;
     }
     suppressParamAnnounce = prevSuppress;
