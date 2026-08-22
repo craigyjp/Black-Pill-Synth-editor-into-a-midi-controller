@@ -23,5 +23,3 @@ Add the Portamento switch with an LED instead of the LFO wave select.
 Connect the transpose buttons to the Teensy so I can manage the transpose.
 
 Make the footswitch input assignable to Arp Start/Stop, Glide on/off etc.
-
-Fix the aftertouch so it does something.
