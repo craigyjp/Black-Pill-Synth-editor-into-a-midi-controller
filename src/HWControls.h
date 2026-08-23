@@ -75,14 +75,14 @@ ADC *adc = new ADC();
 #define MUX5_Phaser_Rate 6
 #define MUX5_PWM_Rate 7
 
-#define MUX6_Amp_LFO_Rate 0
-#define MUX6_Filter_LFO_Depth 1
-#define MUX6_LFO_Velocity_Depth 2
-#define MUX6_Amp_LFO_Depth 3
+#define MUX6_Amp_LFO_Rate 6
+#define MUX6_Filter_LFO_Depth 7
+#define MUX6_LFO_Velocity_Depth 3
+#define MUX6_Amp_LFO_Depth 2
 #define MUX6_PWM_Depth_LFO 4
 #define MUX6_Filter_LFO_Wave 5
-#define MUX6_Filter_LFO_Rate 6
-#define MUX6_PitchBend_Depth 7
+#define MUX6_Filter_LFO_Rate 0
+#define MUX6_PitchBend_Depth 1
 
 // Buttons
 
@@ -128,6 +128,7 @@ ADC *adc = new ADC();
 #define GPB7 15
 
 void mainButtonChanged(Button *btn, bool released);
+void mainButtonHeld(Button *btn);           // NEW
 
 Adafruit_MCP23017 mcp1;
 Adafruit_MCP23017 mcp2;

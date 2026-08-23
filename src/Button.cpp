@@ -1,8 +1,5 @@
 #include "Button.h"
 
-/*
- * Constructor
- */
 Button::Button(Adafruit_MCP23017 *mcp, uint8_t buttonPin, int id, onActionFunction actionFunc) {
     this->mcp = mcp;
     this->buttonPin = buttonPin;
@@ -15,8 +12,12 @@ Button::Button(Adafruit_MCP23017 *mcp, uint8_t buttonPin, int id, onActionFuncti
 void Button::begin() {
     mcp->pinMode(buttonPin, INPUT);
     mcp->pullUp(buttonPin, HIGH);     // Pulled high ~100k
-
     currentState = mcp->digitalRead(buttonPin);
+}
+
+void Button::setHold(onHoldFunction holdFunc, unsigned long holdMs) {
+    this->holdFunc = holdFunc;
+    this->holdThreshold = holdMs;
 }
 
 void Button::feedInput(uint16_t gpioAB) {
@@ -26,27 +27,39 @@ void Button::feedInput(uint16_t gpioAB) {
 
 void Button::process(int pinState) {
     if (pinState != lastButtonState) {
-        // If the switch changed, due to noise or pressing:
         lastDebounceTime = millis();
     }
 
     unsigned long time = millis() - lastDebounceTime;
 
     if (time > debounceDelay) {
-        // whatever the reading is at, it's been there for longer than the debounce
-        // delay, so take it as the actual current state
-
         if (pinState != currentState) {
-            // The button state has been changed:
+            // Debounced press or release
             currentState = pinState;
-            bool released = pinState == HIGH;
+            bool released = pinState == HIGH;   // active-low: HIGH = released
 
-            // Call action function if registered
+            if (!released) {
+                // Press just started
+                pressedTime = millis();
+                holdFired = false;
+            } else if (holdFired) {
+                // This release ends a hold we already actioned -> swallow it
+                // so the normal tap action doesn't also run.
+                holdFired = false;
+                lastButtonState = pinState;
+                return;
+            }
+
             if (actionFunc) {
                 actionFunc(this, released);
             }
         }
-
+        else if (currentState == LOW && !holdFired && holdFunc &&
+                 (millis() - pressedTime) >= holdThreshold) {
+            // Still held down, past the threshold -> fire hold once
+            holdFired = true;
+            holdFunc(this);
+        }
     }
 
     lastButtonState = pinState;

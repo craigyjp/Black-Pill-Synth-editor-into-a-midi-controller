@@ -247,6 +247,30 @@ void initButtons() {
   for (auto &button : allButtons) {
     button->begin();
   }
+  
+  // Press-and-hold to clear a mod-wheel slot back to Nil
+  mw1_sel_Button.setHold(&mainButtonHeld);
+  mw2_sel_Button.setHold(&mainButtonHeld);
+  mw3_sel_Button.setHold(&mainButtonHeld);
+}
+
+void mainButtonHeld(Button *btn) {
+  switch (btn->id) {
+    case MW1_SEL_SW:
+      Wheel_Mod_1_Select = 0;
+      myControlChange(midiChannel, CCWheel_Mod_1_Select, Wheel_Mod_1_Select);
+      break;
+
+    case MW2_SEL_SW:
+      Wheel_Mod_2_Select = 0;
+      myControlChange(midiChannel, CCWheel_Mod_2_Select, Wheel_Mod_2_Select);
+      break;
+
+    case MW3_SEL_SW:
+      Wheel_Mod_3_Select = 0;
+      myControlChange(midiChannel, CCWheel_Mod_3_Select, Wheel_Mod_3_Select);
+      break;
+  }
 }
 
 void mainButtonChanged(Button *btn, bool released) {
@@ -350,34 +374,28 @@ void mainButtonChanged(Button *btn, bool released) {
       break;
 
     case MW1_SEL_SW:
-      if (!released) {
-        Wheel_Mod_1_Select = Wheel_Mod_1_Select + 1;
-        if (Wheel_Mod_1_Select > 12) {
-          Wheel_Mod_1_Select = 0;
-        }
+      if (released) {                       // was: if (!released)
+        Wheel_Mod_1_Select++;
+        if (Wheel_Mod_1_Select > 12) Wheel_Mod_1_Select = 0;
         myControlChange(midiChannel, CCWheel_Mod_1_Select, Wheel_Mod_1_Select);
       }
       break;
 
     case MW2_SEL_SW:
-      if (!released) {
-        Wheel_Mod_2_Select = Wheel_Mod_2_Select + 1;
-        if (Wheel_Mod_2_Select > 12) {
-          Wheel_Mod_2_Select = 0;
-        }
+      if (released) {
+        Wheel_Mod_2_Select++;
+        if (Wheel_Mod_2_Select > 12) Wheel_Mod_2_Select = 0;
         myControlChange(midiChannel, CCWheel_Mod_2_Select, Wheel_Mod_2_Select);
       }
       break;
 
     case MW3_SEL_SW:
-      if (!released) {
-        Wheel_Mod_3_Select = Wheel_Mod_3_Select + 1;
-        if (Wheel_Mod_3_Select > 12) {
-          Wheel_Mod_3_Select = 0;
-        }
+      if (released) {
+        Wheel_Mod_3_Select++;
+        if (Wheel_Mod_3_Select > 12) Wheel_Mod_3_Select = 0;
         myControlChange(midiChannel, CCWheel_Mod_3_Select, Wheel_Mod_3_Select);
       }
-      break; 
+      break;
 
     case VIB_WAVE_SEL_SW:
       if (!released) {
@@ -2118,11 +2136,11 @@ void checkMux() {
   digitalWriteFast(MUX_2, muxInput & B0100);
   delayMicroseconds(2);
 
-  mux1Read = adc->adc0->analogRead(MUX1_S);
-  mux2Read = adc->adc0->analogRead(MUX2_S);
+  mux1Read = adc->adc1->analogRead(MUX1_S);
+  mux2Read = adc->adc1->analogRead(MUX2_S);
   mux3Read = adc->adc1->analogRead(MUX3_S);
-  mux4Read = adc->adc0->analogRead(MUX4_S);
-  mux5Read = adc->adc0->analogRead(MUX5_S);
+  mux4Read = adc->adc1->analogRead(MUX4_S);
+  mux5Read = adc->adc1->analogRead(MUX5_S);
   mux6Read = adc->adc1->analogRead(MUX6_S);
 
   bool reread1 = isRereadSentinel(mux1ValuesPrev[muxInput]);
