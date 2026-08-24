@@ -75,14 +75,14 @@ ADC *adc = new ADC();
 #define MUX5_Phaser_Rate 6
 #define MUX5_PWM_Rate 7
 
-#define MUX6_Amp_LFO_Rate 6
-#define MUX6_Filter_LFO_Depth 7
-#define MUX6_LFO_Velocity_Depth 3
-#define MUX6_Amp_LFO_Depth 2
-#define MUX6_PWM_Depth_LFO 4
-#define MUX6_Filter_LFO_Wave 5
 #define MUX6_Filter_LFO_Rate 0
 #define MUX6_PitchBend_Depth 1
+#define MUX6_Amp_LFO_Depth 2
+#define MUX6_LFO_Velocity_Depth 3
+#define MUX6_PWM_Depth_LFO 4
+#define MUX6_Filter_LFO_Wave 5
+#define MUX6_Amp_LFO_Rate 6
+#define MUX6_Filter_LFO_Depth 7
 
 // Buttons
 
@@ -107,7 +107,7 @@ ADC *adc = new ADC();
 #define MW3_SEL_SW 12
 #define DELAY_SW 13
 #define PHASER_SW 14
-#define MODULATION_WAVE_SW 15
+#define PORTAMENTO_SW 15
 
 // Pins for MCP23017
 #define GPA0 0
@@ -168,7 +168,7 @@ Button mw2_sel_Button = Button(&mcp3, 4, MW2_SEL_SW, &mainButtonChanged);
 Button mw3_sel_Button = Button(&mcp3, 3, MW3_SEL_SW, &mainButtonChanged);
 Button delay_Button = Button(&mcp3, 2, DELAY_SW, &mainButtonChanged);
 Button phaser_Button = Button(&mcp3, 1, PHASER_SW, &mainButtonChanged);
-Button modulation_wave_Button = Button(&mcp3, 0, MODULATION_WAVE_SW, &mainButtonChanged);
+Button modulation_wave_Button = Button(&mcp3, 0, PORTAMENTO_SW, &mainButtonChanged);
 
 
 Button *mainButtons[] = {

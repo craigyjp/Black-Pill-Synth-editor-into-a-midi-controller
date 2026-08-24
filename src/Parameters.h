@@ -134,14 +134,17 @@ int Wheel_Mod_1_Select = 0;
 int Wheel_Mod_2_Select = 0;
 int Wheel_Mod_3_Select = 0;
 int Vibr_Amp_LFO_Wave = 0;
+int Portamento_SW = 0;
 
 int lowerSplitVoicePointer = 0;
 int upperSplitVoicePointer = 0;
+int oldPortamento = 0;
 
 int value = 0;
 
 
 bool encCW = true;  //This is to set the encoder to increment when turned CW - Settings Option
 bool announce = true;
+bool expoResponse = false;
 
 int returnvalue = 0;

@@ -77,7 +77,7 @@
 
 #define CCAT_VCO_Depth 100          // AT depth to VCO (not part of synth
 #define CCPitchBend_Depth 101       // PitchBend Depth
-#define CCFilter_LFO_Wave_SW 102 
+#define CCPortamento_SW 65          // Portamento On/off 
 
 
 //MIDI CC control numbers

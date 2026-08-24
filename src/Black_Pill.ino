@@ -111,6 +111,9 @@ void setup() {
   //Read Param updates
   updateParams = getUpdateParams();
 
+  //Read Envelope curve settings
+  expoResponse = getEnvCurve();
+
   Serial.println("MIDI Ch:" + String(midiChannel) + " (0 is Omni On)");
 
   //USB Client MIDI
@@ -363,13 +366,10 @@ void mainButtonChanged(Button *btn, bool released) {
       }
       break;
 
-    case MODULATION_WAVE_SW:
+    case PORTAMENTO_SW:
       if (!released) {
-        Filter_LFO_Wave = Filter_LFO_Wave + 1;
-        if (Filter_LFO_Wave > 5) {
-          Filter_LFO_Wave = 0;
-        }
-        myControlChange(midiChannel, CCFilter_LFO_Wave_SW, Filter_LFO_Wave);
+        Portamento_SW = !Portamento_SW;
+        myControlChange(midiChannel, CCPortamento_SW, Portamento_SW);
       }
       break;
 
@@ -429,12 +429,24 @@ void DinHandlePitchBend(byte channel, int pitch) {
   MIDI.sendPitchBend(scaled, midiOutCh);
 }
 
-// void DinHandlePitchBend(byte channel, int pitch) {
-//   MIDI.sendPitchBend(pitch, midiOutCh);
-// }
-
 void allNotesOff() {
   midiCCOut(CCallnotesoff, 127);
+}
+
+// Exponential response for envelope-time controls.
+// Expands the low end -> fine control over short times, coarse over long.
+// curveAmount > 1.0 = more low-end resolution. 2.0-3.0 suits ADSR times.
+uint8_t expMap(uint8_t in) {
+  if (!expoResponse) return in;          // linear passthrough
+  static uint8_t table[128];
+  static bool built = false;
+  const float curveAmount = 2.5f;
+  if (!built) {
+    for (int i = 0; i < 128; i++)
+      table[i] = (uint8_t)lroundf(powf(i / 127.0f, curveAmount) * 127.0f);
+    built = true;
+  }
+  return table[in & 0x7F];
 }
 
 void updateAuto_Pitch_Decay(boolean announce) {
@@ -720,7 +732,10 @@ void updatePortamento(boolean announce) {
     startParameterDisplay();
   }
 
-  midiCCOut(CCPortamento, Portamento);
+  oldPortamento = Portamento;
+  if (Portamento_SW) {
+  midiCCOut(CCPortamento, expMap(oldPortamento));
+  }
 }
 
 void updateFilter_Decay(boolean announce) {
@@ -730,7 +745,7 @@ void updateFilter_Decay(boolean announce) {
     startParameterDisplay();
   }
 
-  midiCCOut(CCFilter_Decay, Filter_Decay);
+  midiCCOut(CCFilter_Decay, expMap(Filter_Decay));
 }
 
 void updateFilter_Sustain(boolean announce) {
@@ -750,7 +765,7 @@ void updateFilter_Release(boolean announce) {
     startParameterDisplay();
   }
 
-  midiCCOut(CCFilter_Release, Filter_Release);
+  midiCCOut(CCFilter_Release, expMap(Filter_Release));
 }
 
 void updateFilter_Attack(boolean announce) {
@@ -759,7 +774,7 @@ void updateFilter_Attack(boolean announce) {
     startParameterDisplay();
   }
 
-  midiCCOut(CCFilter_Attack, Filter_Attack);
+  midiCCOut(CCFilter_Attack, expMap(Filter_Attack));
 }
 
 void updateFilter_Resonance(boolean announce) {
@@ -809,7 +824,8 @@ void updateAmp_Attack(boolean announce) {
     startParameterDisplay();
   }
 
-  midiCCOut(CCAmp_Attack, Amp_Attack);
+  //midiCCOut(CCAmp_Attack, Amp_Attack);
+  midiCCOut(CCAmp_Attack, expMap(Amp_Attack));
 }
 
 void updateAmp_Decay(boolean announce) {
@@ -818,7 +834,8 @@ void updateAmp_Decay(boolean announce) {
     startParameterDisplay();
   }
 
-  midiCCOut(CCAmp_Decay, Amp_Decay);
+  //midiCCOut(CCAmp_Decay, Amp_Decay);
+  midiCCOut(CCAmp_Decay, expMap(Amp_Decay));
 }
 
 void updateAuto_Pitch_Sustain(boolean announce) {
@@ -863,7 +880,8 @@ void updateAmp_Release(boolean announce) {
     startParameterDisplay();
   }
 
-  midiCCOut(CCAmp_Release, Amp_Release);
+  //midiCCOut(CCAmp_Release, Amp_Release);
+  midiCCOut(CCAmp_Release, expMap(Amp_Release));
 }
 
 void updateFilter_EG_Depth(boolean announce) {
@@ -1265,6 +1283,31 @@ void updateVibr_Amp_LFO_Wave(boolean announce) {
   writeOLED(2, screenTitle[2], filterwaveNames[Vibr_Amp_LFO_Wave]);
 }
 
+void updatePortamento_SW(boolean announce) {
+
+  if (announce && !suppressParamAnnounce) {
+    if (!Portamento_SW) {
+      showCurrentParameterPage("Portamento", "Off");
+    } else {
+      showCurrentParameterPage("Portamento", "On");
+    }
+    startParameterDisplay();
+  }
+  switch (Portamento_SW) {
+    case 0:
+      oldPortamento = Portamento;
+      midiCCOut(CCPortamento, 0);
+      //mcp3.digitalWrite(PHASER_LED, LOW);
+      break;
+
+    case 1:
+      //midiCCOut(CCPortamento, oldPortamento);
+      midiCCOut(CCPortamento, expMap(oldPortamento));
+      //mcp3.digitalWrite(PHASER_LED, HIGH);
+      break;
+  }
+}
+
 void updatePatchname() {
   showPatchPage(String(patchNo), patchName);
 }
@@ -1436,11 +1479,6 @@ void myControlChange(byte channel, byte control, byte value) {
       updateFilter_LFO_Wave(1);
       break;
 
-    case CCFilter_LFO_Wave_SW:
-      Filter_LFO_Wave = value;  // for display
-      updateFilter_LFO_Wave(1);
-      break;
-
     case CCAuto_Pitch_Depth:
       Auto_Pitch_Depth = value;
       updateAuto_Pitch_Depth(1);
@@ -1575,6 +1613,9 @@ void myControlChange(byte channel, byte control, byte value) {
       updateVibr_Amp_LFO_Wave(1);
       break;
 
+    case CCPortamento_SW:
+      updatePortamento_SW(1);
+      break;
 
     case CCallnotesoff:
       allNotesOff();
@@ -1693,6 +1734,9 @@ void setCurrentPatchData(String data[]) {
   Wheel_Mod_2_Select = data[58].toInt(); 
   Wheel_Mod_3_Select = data[59].toInt(); 
   Vibr_Amp_LFO_Wave = data[60].toInt(); 
+  Portamento_SW = data[61].toInt(); 
+
+  oldPortamento = Portamento;
 
   updatePatchname();
 
@@ -1765,6 +1809,7 @@ void setAllButtons() {
   updateWheel_Mod_2_Select(0);
   updateWheel_Mod_3_Select(0);
   updateVibr_Amp_LFO_Wave(0);
+  updatePortamento_SW(0);
 }
 
 String getCurrentPatchData() {
@@ -1777,7 +1822,8 @@ String getCurrentPatchData() {
          + "," + String(PWM_Rate) + "," + String(PitchBend_Depth) + "," + String(Filter_LFO_Depth) + "," + String(LFO_Velocity_Depth) + "," + String(Amp_LFO_Depth) + "," + String(PWM_Depth_LFO)
          + "," + String(Filter_LFO_Wave) + "," + String(Filter_LFO_Rate) + "," + String(Amp_LFO_Rate) + "," + String(Arpeggiator_Switch) + "," + String(ARP_Hold) + "," + String(ARP_Octave_Plus)
          + "," + String(ARP_Ext_Sync) + "," + String(ARP_Mode) + "," + String(ARP_Note_Length) + "," + String(Filter_Type) + "," + String(KeyTrack_Switch) + "," + String(Legato)
-         + "," + String(DelayFX) + "," + String(Phaser_Switch)+ "," + String(Wheel_Mod_1_Select) + "," + String(Wheel_Mod_2_Select) + "," + String(Wheel_Mod_3_Select) + "," + String(Vibr_Amp_LFO_Wave);
+         + "," + String(DelayFX) + "," + String(Phaser_Switch)+ "," + String(Wheel_Mod_1_Select) + "," + String(Wheel_Mod_2_Select) + "," + String(Wheel_Mod_3_Select) + "," + String(Vibr_Amp_LFO_Wave)
+         + "," + String(Portamento_SW);
 }
 
 void midiCCOut(byte cc, byte value) {

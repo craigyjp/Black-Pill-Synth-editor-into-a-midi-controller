@@ -5,7 +5,16 @@
 #define EEPROM_ENCODER_DIR 2
 #define EEPROM_MIDI_OUT_CH 3
 #define EEPROM_UPDATE_PARAMS 5
+#define EEPROM_ENV_CURVE 6
 
+boolean getEnvCurve() {
+  byte ec = EEPROM.read(EEPROM_ENV_CURVE);
+  if (ec < 0 || ec > 1) return false;    // default = Linear
+  return ec == 1;
+}
+void storeEnvCurve(byte envCurve) {
+  EEPROM.update(EEPROM_ENV_CURVE, envCurve);
+}
 
 
 int getMIDIChannel() {
