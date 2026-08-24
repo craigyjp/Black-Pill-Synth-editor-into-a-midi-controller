@@ -49,9 +49,10 @@ void settingsEncoderDir(int index, const char *value) {
 }
 
 void settingsPedalMode(int index, const char *value) {
-  if (strcmp(value, "Arp") == 0)             pedalMode = 1;
-  else if (strcmp(value, "Portamento") == 0) pedalMode = 2;
-  else if (strcmp(value, "Hold") == 0)       pedalMode = 3;
+  if (strcmp(value, "Arp On") == 0)             pedalMode = 1;
+  else if (strcmp(value, "Arp Hold") == 0) pedalMode = 2;
+  else if (strcmp(value, "Portamento") == 0)       pedalMode = 3;
+  else if (strcmp(value, "Sustain") == 0)       pedalMode = 4;
   else                                       pedalMode = 0;   // "Off"
   storePedalMode(pedalMode);
 }
@@ -92,5 +93,5 @@ void setUpSettings() {
   settings::append(settings::SettingsOption{ "Encoder", { "Type 1", "Type 2", "\0" }, settingsEncoderDir, currentIndexEncoderDir });
   settings::append(settings::SettingsOption{ "Send MIDI", { "Off", "Send MIDI", "\0" }, settingsUpdateParams, currentIndexUpdateParams });
   settings::append(settings::SettingsOption{ "Env Curve", { "Linear", "Expo", "\0" }, settingsEnvCurve, currentIndexEnvCurve });
-  settings::append(settings::SettingsOption{ "Pedal Function", { "Off", "Arp", "Portamento", "Hold" "\0" }, settingsPedalMode, currentIndexPedalMode });
+  settings::append(settings::SettingsOption{ "Pedal Function", { "Off", "Arp On", "Arp Hold", "Portamento", "Sustain", "\0" }, settingsPedalMode, currentIndexPedalMode });
 }

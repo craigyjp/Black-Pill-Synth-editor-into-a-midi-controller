@@ -265,12 +265,12 @@ void renderSettingsPage() {
   tft.setTextSize(2);
   tft.setCursor(10, 80);
   tft.println(currentSettingsOption);
-  if (currentSettingsPart == SETTINGS) renderUpDown(240, 90, ST7735_CYAN);
+  if (currentSettingsPart == SETTINGS) renderUpDown(280, 90, ST7735_CYAN);
   tft.drawFastHLine(10, 125, tft.width() - 20, ST7735_RED);
   tft.setTextColor(ST7735_WHITE);
   tft.setCursor(10, 150);
   tft.println(currentSettingsValue);
-  if (currentSettingsPart == SETTINGSVALUE) renderUpDown(240, 160, ST7735_WHITE);
+  if (currentSettingsPart == SETTINGSVALUE) renderUpDown(280, 160, ST7735_WHITE);
 }
 
 void renderRecallPage()

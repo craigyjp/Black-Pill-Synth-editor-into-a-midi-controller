@@ -19,7 +19,7 @@ void storeEnvCurve(byte envCurve) {
 
 byte getPedalMode() {
   byte pm = EEPROM.read(EEPROM_PEDAL_MODE);
-  if (pm > 3) return 0;              // default = Off
+  if (pm > 4) return 0;              // default = Off
   return pm;
 }
 

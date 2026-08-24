@@ -427,12 +427,12 @@ int mod(int a, int b) {
 
 
 void myNoteOn(byte channel, byte note, byte velocity) {
-  if (pedalMode == 3) sustainedNotes[note] = false;   // actively played now
+  if (pedalMode == 4) sustainedNotes[note] = false;   // actively played now
   MIDI.sendNoteOn(note, velocity, midiOutCh);
 }
 
 void myNoteOff(byte channel, byte note, byte velocity) {
-  if (pedalMode == 3 && pedalHeld) {
+  if (pedalMode == 4 && pedalHeld) {
     sustainedNotes[note] = true;                       // hold until pedal released
     return;
   }
@@ -1342,7 +1342,7 @@ void myControlChange(byte channel, byte control, byte value) {
   switch (control) {
 
     case CCsustain:
-      if (pedalMode == 3) {                            // Hold — momentary
+      if (pedalMode == 4) {                            // Hold — momentary
         if (value >= 64) {
           pedalHeld = true;
         } else {
@@ -1353,7 +1353,10 @@ void myControlChange(byte channel, byte control, byte value) {
         if (pedalMode == 1) {                       // Arp
           Arpeggiator_Switch = !Arpeggiator_Switch;
           updateArpeggiator_Switch(1);
-        } else if (pedalMode == 2) {         // Portamento
+        } else if (pedalMode == 2) {                       // Arp
+          ARP_Hold = !ARP_Hold;
+          updateARP_Hold(1);
+        } else if (pedalMode == 3) {         // Portamento
           Portamento_SW = !Portamento_SW;
           updatePortamento_SW(1);
         }
