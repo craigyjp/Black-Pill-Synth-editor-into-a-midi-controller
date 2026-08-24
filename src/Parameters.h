@@ -139,6 +139,9 @@ int Portamento_SW = 0;
 int lowerSplitVoicePointer = 0;
 int upperSplitVoicePointer = 0;
 int oldPortamento = 0;
+byte pedalMode = 0;                 // 0 = Arp toggle, 1 = Portamento toggle
+boolean pedalHeld = false;
+boolean sustainedNotes[128] = { false };   // notes the pedal is holding
 
 int value = 0;
 

@@ -6,6 +6,7 @@
 #define EEPROM_MIDI_OUT_CH 3
 #define EEPROM_UPDATE_PARAMS 5
 #define EEPROM_ENV_CURVE 6
+#define EEPROM_PEDAL_MODE 7
 
 boolean getEnvCurve() {
   byte ec = EEPROM.read(EEPROM_ENV_CURVE);
@@ -16,6 +17,15 @@ void storeEnvCurve(byte envCurve) {
   EEPROM.update(EEPROM_ENV_CURVE, envCurve);
 }
 
+byte getPedalMode() {
+  byte pm = EEPROM.read(EEPROM_PEDAL_MODE);
+  if (pm > 3) return 0;              // default = Off
+  return pm;
+}
+
+void storePedalMode(byte pedalMode) {
+  EEPROM.update(EEPROM_PEDAL_MODE, pedalMode);
+}
 
 int getMIDIChannel() {
   byte midiChannel = EEPROM.read(EEPROM_MIDI_CH);

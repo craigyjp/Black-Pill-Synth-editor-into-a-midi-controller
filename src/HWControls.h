@@ -228,6 +228,7 @@ Button *allButtons[] = {
 //GP3
 
 #define DELAY_LED 7
+#define PORTAMENTO_LED 14
 #define PHASER_LED 15
 
 
@@ -347,6 +348,7 @@ void setupMCPOutputs() {
   mcp2.pinMode(15, OUTPUT);  // pin 15 = GPB7 of MCP2301X
 
   mcp3.pinMode(7, OUTPUT);   // pin 7 = GPA7 of MCP2301X
+  mcp3.pinMode(14, OUTPUT);  // pin 14 = GPB7 of MCP2301X
   mcp3.pinMode(15, OUTPUT);  // pin 15 = GPB7 of MCP2301X
 
 }

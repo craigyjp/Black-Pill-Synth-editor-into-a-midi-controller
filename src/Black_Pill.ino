@@ -102,17 +102,23 @@ void setup() {
     startParameterDisplay();
   }
 
-  //Read MIDI Channel from EEPROM
+  // Read MIDI Channel from EEPROM
   midiChannel = getMIDIChannel();
 
-  //Read MIDI Out Channel from EEPROM
+  // Read MIDI Out Channel from EEPROM
   midiOutCh = getMIDIOutCh();
 
-  //Read Param updates
+  // Read Param updates
   updateParams = getUpdateParams();
 
-  //Read Envelope curve settings
+  // Read Envelope curve settings
   expoResponse = getEnvCurve();
+
+  // Read the pedal function
+  pedalMode = getPedalMode();
+
+  //Read Encoder Direction from EEPROM
+  encCW = getEncoderDir();  
 
   Serial.println("MIDI Ch:" + String(midiChannel) + " (0 is Omni On)");
 
@@ -123,6 +129,10 @@ void setup() {
   usbMIDI.setHandlePitchChange(DinHandlePitchBend);
   usbMIDI.setHandleNoteOn(myNoteOn);
   usbMIDI.setHandleNoteOff(myNoteOff);
+  usbMIDI.setHandleClock(handleClock);
+  usbMIDI.setHandleStart(handleStart);
+  usbMIDI.setHandleContinue(handleContinue);
+  usbMIDI.setHandleStop(handleStop);
   Serial.println("USB Client MIDI Listening");
 
   //MIDI 5 Pin DIN
@@ -133,6 +143,10 @@ void setup() {
   MIDI.setHandlePitchBend(DinHandlePitchBend);
   MIDI.setHandleNoteOn(myNoteOn);
   MIDI.setHandleNoteOff(myNoteOff);
+  MIDI.setHandleClock(handleClock);
+  MIDI.setHandleStart(handleStart);
+  MIDI.setHandleContinue(handleContinue);
+  MIDI.setHandleStop(handleStop);
   MIDI.turnThruOn(midi::Thru::Mode::Off);
   Serial.println("MIDI In DIN Listening");
 
@@ -145,9 +159,6 @@ void setup() {
   MIDI7.setHandleNoteOff(myNoteOff);
   MIDI7.turnThruOn(midi::Thru::Mode::Off);
   Serial.println("MIDI7 In DIN Listening");
-
-  //Read Encoder Direction from EEPROM
-  encCW = getEncoderDir();
 
   //setupDisplay();
   delay(100);
@@ -416,10 +427,15 @@ int mod(int a, int b) {
 
 
 void myNoteOn(byte channel, byte note, byte velocity) {
+  if (pedalMode == 3) sustainedNotes[note] = false;   // actively played now
   MIDI.sendNoteOn(note, velocity, midiOutCh);
 }
 
 void myNoteOff(byte channel, byte note, byte velocity) {
+  if (pedalMode == 3 && pedalHeld) {
+    sustainedNotes[note] = true;                       // hold until pedal released
+    return;
+  }
   MIDI.sendNoteOff(note, velocity, midiOutCh);
 }
 
@@ -440,7 +456,7 @@ uint8_t expMap(uint8_t in) {
   if (!expoResponse) return in;          // linear passthrough
   static uint8_t table[128];
   static bool built = false;
-  const float curveAmount = 2.5f;
+  const float curveAmount = 1.5f;
   if (!built) {
     for (int i = 0; i < 128; i++)
       table[i] = (uint8_t)lroundf(powf(i / 127.0f, curveAmount) * 127.0f);
@@ -1297,13 +1313,13 @@ void updatePortamento_SW(boolean announce) {
     case 0:
       oldPortamento = Portamento;
       midiCCOut(CCPortamento, 0);
-      //mcp3.digitalWrite(PHASER_LED, LOW);
+      mcp3.digitalWrite(PORTAMENTO_LED, LOW);
       break;
 
     case 1:
       //midiCCOut(CCPortamento, oldPortamento);
       midiCCOut(CCPortamento, expMap(oldPortamento));
-      //mcp3.digitalWrite(PHASER_LED, HIGH);
+      mcp3.digitalWrite(PORTAMENTO_LED, HIGH);
       break;
   }
 }
@@ -1312,12 +1328,37 @@ void updatePatchname() {
   showPatchPage(String(patchNo), patchName);
 }
 
+void releaseHeldNotes() {
+  for (int n = 0; n < 128; n++) {
+    if (sustainedNotes[n]) {
+      MIDI.sendNoteOff(n, 0, midiOutCh);
+      sustainedNotes[n] = false;
+    }
+  }
+}
+
 void myControlChange(byte channel, byte control, byte value) {
 
   switch (control) {
 
     case CCsustain:
-      MIDI.sendControlChange(control, value, midiOutCh);
+      if (pedalMode == 3) {                            // Hold — momentary
+        if (value >= 64) {
+          pedalHeld = true;
+        } else {
+          pedalHeld = false;
+          releaseHeldNotes();
+        }
+      } else if (value >= 64) {
+        if (pedalMode == 1) {                       // Arp
+          Arpeggiator_Switch = !Arpeggiator_Switch;
+          updateArpeggiator_Switch(1);
+        } else if (pedalMode == 2) {         // Portamento
+          Portamento_SW = !Portamento_SW;
+          updatePortamento_SW(1);
+        }
+        // pedalMode == 0 (Off) → pedal ignored
+      }
       break;
 
     case CCmodwheel:
@@ -1632,6 +1673,11 @@ void myProgramChange(byte channel, byte program) {
   //Serial.println(patchNo);
   state = PARAMETER;
 }
+
+void handleClock()    { MIDI.sendRealTime(midi::Clock); }
+void handleStart()    { MIDI.sendRealTime(midi::Start); }
+void handleContinue() { MIDI.sendRealTime(midi::Continue); }
+void handleStop()     { MIDI.sendRealTime(midi::Stop); }
 
 void myAfterTouch(byte channel, byte value) {
   // Scale incoming pressure (0..127) by the AT depth control (0..127).
