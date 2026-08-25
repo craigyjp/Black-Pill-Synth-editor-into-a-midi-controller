@@ -277,25 +277,27 @@ void renderRecallPage()
 {
   tft.fillScreen(ST7735_BLACK);
   tft.setFont(&FreeSans9pt7b);
-  tft.setCursor(0, 45);
+  tft.setTextSize(2);
+
+  tft.setCursor(0, 60);
   tft.setTextColor(ST7735_CYAN);
   tft.println(patches.last().patchNo);
-  tft.setCursor(35, 45);
+  tft.setCursor(100, 60);
   tft.setTextColor(ST7735_WHITE);
   tft.println(patches.last().patchName);
 
-  tft.fillRect(0, 56, tft.width(), 23, 0xA000);
-  tft.setCursor(0, 72);
+  tft.fillRect(0, 102, tft.width(), 46, 0xA000);
+  tft.setCursor(0, 114);
   tft.setTextColor(ST7735_CYAN);
   tft.println(patches.first().patchNo);
-  tft.setCursor(35, 72);
+  tft.setCursor(100, 114);
   tft.setTextColor(ST7735_WHITE);
   tft.println(patches.first().patchName);
 
-  tft.setCursor(0, 98);
+  tft.setCursor(0, 166);
   tft.setTextColor(ST7735_CYAN);
   patches.size() > 1 ? tft.println(patches[1].patchNo) : tft.println(patches.last().patchNo);
-  tft.setCursor(35, 98);
+  tft.setCursor(100, 166);
   tft.setTextColor(ST7735_WHITE);
   patches.size() > 1 ? tft.println(patches[1].patchName) : tft.println(patches.last().patchName);
 }
@@ -303,23 +305,27 @@ void renderRecallPage()
 void renderDeletePatchPage() {
   tft.fillScreen(ST7735_BLACK);
   tft.setFont(&FreeSansBold18pt7b);
-  tft.setCursor(5, 53);
+  tft.setCursor(10, 20);
   tft.setTextColor(ST7735_CYAN);
   tft.setTextSize(1);
   tft.println("Delete?");
-  tft.drawFastHLine(10, 60, tft.width() - 20, ST7735_RED);
+  tft.drawFastHLine(10, 50, tft.width() - 20, ST7735_RED);
+
+  tft.setTextSize(2);
   tft.setFont(&FreeSans9pt7b);
-  tft.setCursor(0, 78);
+  tft.setCursor(10, 80);
   tft.setTextColor(ST7735_CYAN);
   tft.println(patches.last().patchNo);
-  tft.setCursor(35, 78);
+  tft.setCursor(100, 80);
   tft.setTextColor(ST7735_WHITE);
   tft.println(patches.last().patchName);
-  tft.fillRect(0, 85, tft.width(), 23, ST7735_RED);
-  tft.setCursor(0, 98);
+
+  tft.fillRect(10, 120, tft.width() - 20, 44, ST7735_RED);
+
+  tft.setCursor(10, 130);
   tft.setTextColor(ST7735_CYAN);
   tft.println(patches.first().patchNo);
-  tft.setCursor(35, 98);
+  tft.setCursor(100, 130);
   tft.setTextColor(ST7735_WHITE);
   tft.println(patches.first().patchName);
 }
