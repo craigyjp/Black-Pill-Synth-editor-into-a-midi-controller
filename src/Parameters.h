@@ -135,13 +135,15 @@ int Wheel_Mod_2_Select = 0;
 int Wheel_Mod_3_Select = 0;
 int Vibr_Amp_LFO_Wave = 0;
 int Portamento_SW = 0;
+int Octave_Shift = 0;
+int pedalMode = 0;   
 
 int lowerSplitVoicePointer = 0;
 int upperSplitVoicePointer = 0;
 int oldPortamento = 0;
-byte pedalMode = 0;                 // 0 = Arp toggle, 1 = Portamento toggle
 boolean pedalHeld = false;
 boolean sustainedNotes[128] = { false };   // notes the pedal is holding
+int sentNote[128];   // actual pitch sent per incoming key; -1 = not sounding
 
 int value = 0;
 

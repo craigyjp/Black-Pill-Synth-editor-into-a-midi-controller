@@ -94,6 +94,8 @@ ADC *adc = new ADC();
 #define ARP_EXT_SW 3
 #define ARP_OCTAVE_SW 4
 #define ARP_BOUNCE_SW 5
+#define OCTAVE_UP_SW 16
+#define OCTAVE_DOWN_SW 17
 
 // GP2
 #define VCF_TYPE_SW 6
@@ -151,6 +153,8 @@ constexpr int numEncoders = (int)(sizeof(rotaryEncoders) / sizeof(*rotaryEncoder
 //std::vector<RotaryEncOverMCP *> encByMCP[NUM_MCP];
 
 Button arp_note_length_Button = Button(&mcp1, 2, ARP_NOTE_LENGTH_SW, &mainButtonChanged);
+Button octave_up_Button = Button(&mcp1, 3, OCTAVE_UP_SW, &mainButtonChanged);
+Button octave_down_Button = Button(&mcp1, 4, OCTAVE_DOWN_SW, &mainButtonChanged);
 Button arp_on_Button = Button(&mcp1, 8, ARP_ON_SW, &mainButtonChanged);
 Button arp_hold_Button = Button(&mcp1, 9, ARP_HOLD_SW, &mainButtonChanged);
 Button arp_ext_Button = Button(&mcp1, 10, ARP_EXT_SW, &mainButtonChanged);
@@ -161,14 +165,19 @@ Button vcf_type_Button = Button(&mcp2, 8, VCF_TYPE_SW, &mainButtonChanged);
 Button keytrack_Button = Button(&mcp2, 9, KEYTRACK_SW, &mainButtonChanged);
 Button legato_Button = Button(&mcp2, 10, LEGATO_SW, &mainButtonChanged);
 
-
-Button vib_wave_Button = Button(&mcp3, 6, VIB_WAVE_SEL_SW, &mainButtonChanged);
-Button mw1_sel_Button = Button(&mcp3, 5, MW1_SEL_SW, &mainButtonChanged);
-Button mw2_sel_Button = Button(&mcp3, 4, MW2_SEL_SW, &mainButtonChanged);
+Button phaser_Button = Button(&mcp3, 0, PHASER_SW, &mainButtonChanged);
+Button delay_Button = Button(&mcp3, 1, DELAY_SW, &mainButtonChanged);
+Button portamento_Button = Button(&mcp3, 2, PORTAMENTO_SW, &mainButtonChanged);
 Button mw3_sel_Button = Button(&mcp3, 3, MW3_SEL_SW, &mainButtonChanged);
-Button delay_Button = Button(&mcp3, 2, DELAY_SW, &mainButtonChanged);
-Button phaser_Button = Button(&mcp3, 1, PHASER_SW, &mainButtonChanged);
-Button modulation_wave_Button = Button(&mcp3, 0, PORTAMENTO_SW, &mainButtonChanged);
+Button mw2_sel_Button = Button(&mcp3, 4, MW2_SEL_SW, &mainButtonChanged);
+Button mw1_sel_Button = Button(&mcp3, 5, MW1_SEL_SW, &mainButtonChanged);
+Button vib_wave_Button = Button(&mcp3, 6, VIB_WAVE_SEL_SW, &mainButtonChanged);
+
+
+
+
+
+
 
 
 Button *mainButtons[] = {
@@ -187,7 +196,9 @@ Button *mainButtons[] = {
   &mw3_sel_Button,
   &delay_Button,
   &phaser_Button,
-  &modulation_wave_Button,
+  &portamento_Button,
+  &octave_up_Button,
+  &octave_down_Button,
 };
 
 Button *allButtons[] = {
@@ -206,7 +217,9 @@ Button *allButtons[] = {
   &mw3_sel_Button,
   &delay_Button,
   &phaser_Button,
-  &modulation_wave_Button,
+  &portamento_Button,
+  &octave_up_Button,
+  &octave_down_Button,
 };
 
 // LEDS
@@ -227,9 +240,9 @@ Button *allButtons[] = {
 
 //GP3
 
-#define DELAY_LED 7
-#define PORTAMENTO_LED 14
-#define PHASER_LED 15
+#define DELAY_LED 15
+#define PORTAMENTO_LED 7
+#define PHASER_LED 14
 
 
 struct LedRef {

@@ -33,7 +33,7 @@ unsigned int state = PARAMETER;
 
 
 //MIDI 5 Pin DIN
-MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI);  // main MIDI in and out
+MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI);   // main MIDI in and out
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial7, MIDI7);  // main MIDI in and out
 
 int patchNo = 1;
@@ -53,8 +53,8 @@ void setup() {
   bootInitInProgress = true;
 
   SPI.begin();
-  Wire.begin();            // Join the I2C bus as Master
-  Wire.setClock(100000);   // Set I2C speed to 100 kHz
+  Wire.begin();           // Join the I2C bus as Master
+  Wire.setClock(100000);  // Set I2C speed to 100 kHz
 
   Wire1.begin();           // Join the I2C bus as Master
   Wire1.setClock(400000);  // Set I2C speed to 400 kHz
@@ -118,7 +118,7 @@ void setup() {
   pedalMode = getPedalMode();
 
   //Read Encoder Direction from EEPROM
-  encCW = getEncoderDir();  
+  encCW = getEncoderDir();
 
   Serial.println("MIDI Ch:" + String(midiChannel) + " (0 is Omni On)");
 
@@ -150,7 +150,7 @@ void setup() {
   MIDI.turnThruOn(midi::Thru::Mode::Off);
   Serial.println("MIDI In DIN Listening");
 
-    //MIDI 5 Pin DIN
+  //MIDI 5 Pin DIN
   MIDI7.begin();
   MIDI7.setHandleControlChange(myControlChange);
   MIDI7.setHandleAfterTouchChannel(myAfterTouch);
@@ -162,6 +162,7 @@ void setup() {
 
   //setupDisplay();
   delay(100);
+  for (int i = 0; i < 128; i++) sentNote[i] = -1;
 
   patchNo = 1;
   recallPatch(patchNo);  //Load first patch
@@ -200,15 +201,15 @@ void initOLEDDisplays() {
   tcaDisable();
 }
 
-void writeOLED(uint8_t ch, const char* title, const char* value) {
+void writeOLED(uint8_t ch, const char *title, const char *value) {
   tcaSelect(ch);
   display.clearDisplay();
 
-  display.setTextSize(1);          // small title row (8px)
+  display.setTextSize(1);  // small title row (8px)
   display.setCursor(0, 0);
   display.print(title);
 
-  display.setTextSize(2);          // large value (16px)
+  display.setTextSize(2);  // large value (16px)
   display.setCursor(0, 14);
   display.print(value);
 
@@ -261,7 +262,7 @@ void initButtons() {
   for (auto &button : allButtons) {
     button->begin();
   }
-  
+
   // Press-and-hold to clear a mod-wheel slot back to Nil
   mw1_sel_Button.setHold(&mainButtonHeld);
   mw2_sel_Button.setHold(&mainButtonHeld);
@@ -384,8 +385,26 @@ void mainButtonChanged(Button *btn, bool released) {
       }
       break;
 
+    case OCTAVE_UP_SW:
+      if (!released) {
+        Octave_Shift = Octave_Shift + 12;
+        if (Octave_Shift > 48) {
+          Octave_Shift = 48;
+        }
+      }
+      break;
+
+    case OCTAVE_DOWN_SW:
+      if (!released) {
+        Octave_Shift = Octave_Shift - 12;
+        if (Octave_Shift < -48) {
+          Octave_Shift = -48;
+        }
+      }
+      break;
+
     case MW1_SEL_SW:
-      if (released) {                       // was: if (!released)
+      if (released) {  // was: if (!released)
         Wheel_Mod_1_Select++;
         if (Wheel_Mod_1_Select > 12) Wheel_Mod_1_Select = 0;
         myControlChange(midiChannel, CCWheel_Mod_1_Select, Wheel_Mod_1_Select);
@@ -427,21 +446,37 @@ int mod(int a, int b) {
 
 
 void myNoteOn(byte channel, byte note, byte velocity) {
+  int shifted = constrain(note + Octave_Shift, 0, 127);
+  sentNote[note] = shifted;                           // remember what we actually sent
   if (pedalMode == 4) sustainedNotes[note] = false;   // actively played now
-  MIDI.sendNoteOn(note, velocity, midiOutCh);
+  MIDI.sendNoteOn(shifted, velocity, midiOutCh);
 }
 
 void myNoteOff(byte channel, byte note, byte velocity) {
+  int shifted = (sentNote[note] >= 0) ? sentNote[note]
+                                      : constrain(note + Octave_Shift, 0, 127);  // fallback
   if (pedalMode == 4 && pedalHeld) {
-    sustainedNotes[note] = true;                       // hold until pedal released
+    sustainedNotes[note] = true;                       // defer; keep sentNote for release
     return;
   }
-  MIDI.sendNoteOff(note, velocity, midiOutCh);
+  MIDI.sendNoteOff(shifted, velocity, midiOutCh);
+  sentNote[note] = -1;                                 // no longer sounding
+}
+
+void releaseHeldNotes() {
+  for (int n = 0; n < 128; n++) {
+    if (sustainedNotes[n]) {
+      int shifted = (sentNote[n] >= 0) ? sentNote[n] : n;   // release the pitch we sent
+      MIDI.sendNoteOff(shifted, 0, midiOutCh);
+      sustainedNotes[n] = false;
+      sentNote[n] = -1;
+    }
+  }
 }
 
 void DinHandlePitchBend(byte channel, int pitch) {
-  int range  = constrain(PitchBend_Depth, 0, 6);   // repurposed: 0..6 semitones
-  int scaled = (pitch * range) / 6;             // 6 -> unchanged, 0 -> dead
+  int range = constrain(PitchBend_Depth, 0, 6);  // repurposed: 0..6 semitones
+  int scaled = (pitch * range) / 6;              // 6 -> unchanged, 0 -> dead
   MIDI.sendPitchBend(scaled, midiOutCh);
 }
 
@@ -453,7 +488,7 @@ void allNotesOff() {
 // Expands the low end -> fine control over short times, coarse over long.
 // curveAmount > 1.0 = more low-end resolution. 2.0-3.0 suits ADSR times.
 uint8_t expMap(uint8_t in) {
-  if (!expoResponse) return in;          // linear passthrough
+  if (!expoResponse) return in;  // linear passthrough
   static uint8_t table[128];
   static bool built = false;
   const float curveAmount = 1.5f;
@@ -627,7 +662,6 @@ void updatePitchBend_Depth(boolean announce) {
     showCurrentParameterPage("PitchBend Range", PitchBend_Depth);
     startParameterDisplay();
   }
-
 }
 
 void updatePWM_Depth_LFO(boolean announce) {
@@ -750,7 +784,7 @@ void updatePortamento(boolean announce) {
 
   oldPortamento = Portamento;
   if (Portamento_SW) {
-  midiCCOut(CCPortamento, expMap(oldPortamento));
+    midiCCOut(CCPortamento, expMap(oldPortamento));
   }
 }
 
@@ -811,7 +845,7 @@ void updateAmp_Velocity_Depth(boolean announce) {
   midiCCOut(CCAmp_Velocity_Depth, Amp_Velocity_Depth);
 }
 
-String autoSignedCentred(int v) {        // v is 0..127, 64 = dead centre
+String autoSignedCentred(int v) {  // v is 0..127, 64 = dead centre
   int d = 0;
   if (v == 64) {
     d = 0;
@@ -1016,131 +1050,131 @@ void updateARP_Ext_Sync(boolean announce) {
 
 void updateARP_Mode(boolean announce) {
 
-    switch (ARP_Mode) {
-      case 0:
-        if (announce && !suppressParamAnnounce) {
-          showCurrentParameterPage("Arp Mode", "UP");
-          startParameterDisplay();
-        }
-        midiCCOut(CCARP_Mode, 0);
-        mcp1.digitalWrite(ARP_BOUNCE_LED_RED, HIGH);
-        mcp1.digitalWrite(ARP_BOUNCE_LED_GREEN, LOW);
-        break;
+  switch (ARP_Mode) {
+    case 0:
+      if (announce && !suppressParamAnnounce) {
+        showCurrentParameterPage("Arp Mode", "UP");
+        startParameterDisplay();
+      }
+      midiCCOut(CCARP_Mode, 0);
+      mcp1.digitalWrite(ARP_BOUNCE_LED_RED, HIGH);
+      mcp1.digitalWrite(ARP_BOUNCE_LED_GREEN, LOW);
+      break;
 
-      case 1:
-        if (announce && !suppressParamAnnounce) {
-          showCurrentParameterPage("Arp Mode", "DOWN");
-          startParameterDisplay();
-        }
-        midiCCOut(CCARP_Mode, 1);
-        mcp1.digitalWrite(ARP_BOUNCE_LED_RED, LOW);
-        mcp1.digitalWrite(ARP_BOUNCE_LED_GREEN, HIGH);
-        break;
+    case 1:
+      if (announce && !suppressParamAnnounce) {
+        showCurrentParameterPage("Arp Mode", "DOWN");
+        startParameterDisplay();
+      }
+      midiCCOut(CCARP_Mode, 1);
+      mcp1.digitalWrite(ARP_BOUNCE_LED_RED, LOW);
+      mcp1.digitalWrite(ARP_BOUNCE_LED_GREEN, HIGH);
+      break;
 
-      case 2:
-        if (announce && !suppressParamAnnounce) {
-          showCurrentParameterPage("Arp Mode", "BOUNCE");
-          startParameterDisplay();
-        }
-        midiCCOut(CCARP_Mode, 2);
-        mcp1.digitalWrite(ARP_BOUNCE_LED_RED, HIGH);
-        mcp1.digitalWrite(ARP_BOUNCE_LED_GREEN, HIGH);
-        break;
-    }
+    case 2:
+      if (announce && !suppressParamAnnounce) {
+        showCurrentParameterPage("Arp Mode", "BOUNCE");
+        startParameterDisplay();
+      }
+      midiCCOut(CCARP_Mode, 2);
+      mcp1.digitalWrite(ARP_BOUNCE_LED_RED, HIGH);
+      mcp1.digitalWrite(ARP_BOUNCE_LED_GREEN, HIGH);
+      break;
+  }
 }
 
 void updateARP_Note_Length(boolean announce) {
 
-    switch (ARP_Note_Length) {
-      case 0:
-        if (announce && !suppressParamAnnounce) {
-          showCurrentParameterPage("Arp Note Length", "WHOLE");
-          startParameterDisplay();
-        }
-        midiCCOut(CCARP_Note_Length, 12);
-        writeOLED(1, screenTitle[1], "WHOLE");
-        break;
+  switch (ARP_Note_Length) {
+    case 0:
+      if (announce && !suppressParamAnnounce) {
+        showCurrentParameterPage("Arp Note Length", "WHOLE");
+        startParameterDisplay();
+      }
+      midiCCOut(CCARP_Note_Length, 12);
+      writeOLED(1, screenTitle[1], "WHOLE");
+      break;
 
-      case 1:
-        if (announce && !suppressParamAnnounce) {
-          showCurrentParameterPage("Arp Note Length", "HALF");
-          startParameterDisplay();
-        }
-        midiCCOut(CCARP_Note_Length, 32);
-        writeOLED(1, screenTitle[1], "HALF");
-        break;
+    case 1:
+      if (announce && !suppressParamAnnounce) {
+        showCurrentParameterPage("Arp Note Length", "HALF");
+        startParameterDisplay();
+      }
+      midiCCOut(CCARP_Note_Length, 32);
+      writeOLED(1, screenTitle[1], "HALF");
+      break;
 
-      case 2:
-        if (announce && !suppressParamAnnounce) {
-          showCurrentParameterPage("Arp Note Length", "QUARTER");
-          startParameterDisplay();
-        }
-        midiCCOut(CCARP_Note_Length, 52);
-        writeOLED(1, screenTitle[1], "QUARTER");
-        break;
+    case 2:
+      if (announce && !suppressParamAnnounce) {
+        showCurrentParameterPage("Arp Note Length", "QUARTER");
+        startParameterDisplay();
+      }
+      midiCCOut(CCARP_Note_Length, 52);
+      writeOLED(1, screenTitle[1], "QUARTER");
+      break;
 
-      case 3:
-        if (announce && !suppressParamAnnounce) {
-          showCurrentParameterPage("Arp Note Length", "EIGTH");
-          startParameterDisplay();
-        }
-        midiCCOut(CCARP_Note_Length, 72);
-        writeOLED(1, screenTitle[1], "EIGTH");
-        break;
+    case 3:
+      if (announce && !suppressParamAnnounce) {
+        showCurrentParameterPage("Arp Note Length", "EIGTH");
+        startParameterDisplay();
+      }
+      midiCCOut(CCARP_Note_Length, 72);
+      writeOLED(1, screenTitle[1], "EIGTH");
+      break;
 
-      case 4:
-        if (announce && !suppressParamAnnounce) {
-          showCurrentParameterPage("Arp Note Length", "SIXTEENTH");
-          startParameterDisplay();
-        }
-        midiCCOut(CCARP_Note_Length, 92);
-        writeOLED(1, screenTitle[1], "SIXTEENTH");
-        break;
+    case 4:
+      if (announce && !suppressParamAnnounce) {
+        showCurrentParameterPage("Arp Note Length", "SIXTEENTH");
+        startParameterDisplay();
+      }
+      midiCCOut(CCARP_Note_Length, 92);
+      writeOLED(1, screenTitle[1], "SIXTEENTH");
+      break;
 
-      case 5:
-        if (announce && !suppressParamAnnounce) {
-          showCurrentParameterPage("Arp Note Length", "32nd");
-          startParameterDisplay();
-        }
-        midiCCOut(CCARP_Note_Length, 112);
-        writeOLED(1, screenTitle[1], "32nd");
-        break;
-    }
+    case 5:
+      if (announce && !suppressParamAnnounce) {
+        showCurrentParameterPage("Arp Note Length", "32nd");
+        startParameterDisplay();
+      }
+      midiCCOut(CCARP_Note_Length, 112);
+      writeOLED(1, screenTitle[1], "32nd");
+      break;
+  }
 }
 
 void updateFilter_Type(boolean announce) {
 
-    switch (Filter_Type) {
-      case 0:
-        if (announce && !suppressParamAnnounce) {
-          showCurrentParameterPage("Filter Mode", "Off");
-          startParameterDisplay();
-        }
-        midiCCOut(CCFilter_Type, 0);
-        mcp2.digitalWrite(VCF_TYPE_LED_RED, LOW);
-        mcp2.digitalWrite(VCF_TYPE_LED_GREEN, LOW);
-        break;
+  switch (Filter_Type) {
+    case 0:
+      if (announce && !suppressParamAnnounce) {
+        showCurrentParameterPage("Filter Mode", "Off");
+        startParameterDisplay();
+      }
+      midiCCOut(CCFilter_Type, 0);
+      mcp2.digitalWrite(VCF_TYPE_LED_RED, LOW);
+      mcp2.digitalWrite(VCF_TYPE_LED_GREEN, LOW);
+      break;
 
-      case 1:
-        if (announce && !suppressParamAnnounce) {
-          showCurrentParameterPage("Filter Mode", "LoPass");
-          startParameterDisplay();
-        }
-        midiCCOut(CCFilter_Type, 40);
-        mcp2.digitalWrite(VCF_TYPE_LED_RED, HIGH);
-        mcp2.digitalWrite(VCF_TYPE_LED_GREEN, LOW);
-        break;
+    case 1:
+      if (announce && !suppressParamAnnounce) {
+        showCurrentParameterPage("Filter Mode", "LoPass");
+        startParameterDisplay();
+      }
+      midiCCOut(CCFilter_Type, 40);
+      mcp2.digitalWrite(VCF_TYPE_LED_RED, HIGH);
+      mcp2.digitalWrite(VCF_TYPE_LED_GREEN, LOW);
+      break;
 
-      case 2:
-        if (announce && !suppressParamAnnounce) {
-          showCurrentParameterPage("Filter Mode", "HiPass");
-          startParameterDisplay();
-        }
-        midiCCOut(CCFilter_Type, 100);
-        mcp2.digitalWrite(VCF_TYPE_LED_RED, LOW);
-        mcp2.digitalWrite(VCF_TYPE_LED_GREEN, HIGH);
-        break;
-    }
+    case 2:
+      if (announce && !suppressParamAnnounce) {
+        showCurrentParameterPage("Filter Mode", "HiPass");
+        startParameterDisplay();
+      }
+      midiCCOut(CCFilter_Type, 100);
+      mcp2.digitalWrite(VCF_TYPE_LED_RED, LOW);
+      mcp2.digitalWrite(VCF_TYPE_LED_GREEN, HIGH);
+      break;
+  }
 }
 
 void updateKeyTrack_Switch(boolean announce) {
@@ -1238,7 +1272,7 @@ void updatePhaser_Switch(boolean announce) {
 void updateWheel_Mod_1_Select(boolean announce) {
   static byte lastWheel_Mod_1_Select = 255;  // 255 = impossible, so first call always fires
 
-  if (Wheel_Mod_1_Select > 12) return;                     // guard: never index the arrays out of bounds
+  if (Wheel_Mod_1_Select > 12) return;                       // guard: never index the arrays out of bounds
   if (Wheel_Mod_1_Select == lastWheel_Mod_1_Select) return;  // unchanged since last time -> do nothing
   lastWheel_Mod_1_Select = Wheel_Mod_1_Select;               // remember it for next time
 
@@ -1254,7 +1288,7 @@ void updateWheel_Mod_1_Select(boolean announce) {
 void updateWheel_Mod_2_Select(boolean announce) {
   static byte lastWheel_Mod_2_Select = 255;  // 255 = impossible, so first call always fires
 
-  if (Wheel_Mod_2_Select > 12) return;                     // guard: never index the arrays out of bounds
+  if (Wheel_Mod_2_Select > 12) return;                       // guard: never index the arrays out of bounds
   if (Wheel_Mod_2_Select == lastWheel_Mod_2_Select) return;  // unchanged since last time -> do nothing
   lastWheel_Mod_2_Select = Wheel_Mod_2_Select;               // remember it for next time
 
@@ -1270,7 +1304,7 @@ void updateWheel_Mod_2_Select(boolean announce) {
 void updateWheel_Mod_3_Select(boolean announce) {
   static byte lastWheel_Mod_3_Select = 255;  // 255 = impossible, so first call always fires
 
-  if (Wheel_Mod_3_Select > 12) return;                     // guard: never index the arrays out of bounds
+  if (Wheel_Mod_3_Select > 12) return;                       // guard: never index the arrays out of bounds
   if (Wheel_Mod_3_Select == lastWheel_Mod_3_Select) return;  // unchanged since last time -> do nothing
   lastWheel_Mod_3_Select = Wheel_Mod_3_Select;               // remember it for next time
 
@@ -1286,7 +1320,7 @@ void updateWheel_Mod_3_Select(boolean announce) {
 void updateVibr_Amp_LFO_Wave(boolean announce) {
   static byte lastVibr_Amp_LFO_Wave = 255;  // 255 = impossible, so first call always fires
 
-  if (Vibr_Amp_LFO_Wave > 5) return;                     // guard: never index the arrays out of bounds
+  if (Vibr_Amp_LFO_Wave > 5) return;                       // guard: never index the arrays out of bounds
   if (Vibr_Amp_LFO_Wave == lastVibr_Amp_LFO_Wave) return;  // unchanged since last time -> do nothing
   lastVibr_Amp_LFO_Wave = Vibr_Amp_LFO_Wave;               // remember it for next time
 
@@ -1313,12 +1347,14 @@ void updatePortamento_SW(boolean announce) {
     case 0:
       oldPortamento = Portamento;
       midiCCOut(CCPortamento, 0);
+      midiCCOut(CCPortamento_SW, 0);
       mcp3.digitalWrite(PORTAMENTO_LED, LOW);
       break;
 
     case 1:
       //midiCCOut(CCPortamento, oldPortamento);
       midiCCOut(CCPortamento, expMap(oldPortamento));
+      midiCCOut(CCPortamento_SW, 127);
       mcp3.digitalWrite(PORTAMENTO_LED, HIGH);
       break;
   }
@@ -1328,21 +1364,12 @@ void updatePatchname() {
   showPatchPage(String(patchNo), patchName);
 }
 
-void releaseHeldNotes() {
-  for (int n = 0; n < 128; n++) {
-    if (sustainedNotes[n]) {
-      MIDI.sendNoteOff(n, 0, midiOutCh);
-      sustainedNotes[n] = false;
-    }
-  }
-}
-
 void myControlChange(byte channel, byte control, byte value) {
 
   switch (control) {
 
     case CCsustain:
-      if (pedalMode == 4) {                            // Hold — momentary
+      if (pedalMode == 4) {  // Hold — momentary
         if (value >= 64) {
           pedalHeld = true;
         } else {
@@ -1350,13 +1377,13 @@ void myControlChange(byte channel, byte control, byte value) {
           releaseHeldNotes();
         }
       } else if (value >= 64) {
-        if (pedalMode == 1) {                       // Arp
+        if (pedalMode == 1) {  // Arp
           Arpeggiator_Switch = !Arpeggiator_Switch;
           updateArpeggiator_Switch(1);
-        } else if (pedalMode == 2) {                       // Arp
+        } else if (pedalMode == 2) {  // Arp
           ARP_Hold = !ARP_Hold;
           updateARP_Hold(1);
-        } else if (pedalMode == 3) {         // Portamento
+        } else if (pedalMode == 3) {  // Portamento
           Portamento_SW = !Portamento_SW;
           updatePortamento_SW(1);
         }
@@ -1594,7 +1621,7 @@ void myControlChange(byte channel, byte control, byte value) {
       updatePortamento(1);
       break;
 
-  // Buttons ////////////////////////////////////////////////
+      // Buttons ////////////////////////////////////////////////
 
 
     case CCArpeggiator_Switch:
@@ -1677,16 +1704,24 @@ void myProgramChange(byte channel, byte program) {
   state = PARAMETER;
 }
 
-void handleClock()    { MIDI.sendRealTime(midi::Clock); }
-void handleStart()    { MIDI.sendRealTime(midi::Start); }
-void handleContinue() { MIDI.sendRealTime(midi::Continue); }
-void handleStop()     { MIDI.sendRealTime(midi::Stop); }
+void handleClock() {
+  MIDI.sendRealTime(midi::Clock);
+}
+void handleStart() {
+  MIDI.sendRealTime(midi::Start);
+}
+void handleContinue() {
+  MIDI.sendRealTime(midi::Continue);
+}
+void handleStop() {
+  MIDI.sendRealTime(midi::Stop);
+}
 
 void myAfterTouch(byte channel, byte value) {
   // Scale incoming pressure (0..127) by the AT depth control (0..127).
   // +63 rounds to nearest instead of truncating.
   uint8_t atDepth = (value * AT_VCO_Depth + 63) / 127;
-  midiCCOut(CCmodwheel, atDepth);        // CC 1 -> mod wheel, routed via Wheel_Mod selects
+  midiCCOut(CCmodwheel, atDepth);  // CC 1 -> mod wheel, routed via Wheel_Mod selects
 }
 
 void recallPatch(int patchNo) {
@@ -1769,21 +1804,23 @@ void setCurrentPatchData(String data[]) {
   Filter_LFO_Rate = data[44].toInt();
   Amp_LFO_Rate = data[45].toInt();
   Arpeggiator_Switch = data[46].toInt();
-  ARP_Hold =  data[47].toInt();
-  ARP_Octave_Plus =  data[48].toInt();
+  ARP_Hold = data[47].toInt();
+  ARP_Octave_Plus = data[48].toInt();
   ARP_Ext_Sync = data[49].toInt();
-  ARP_Mode =  data[50].toInt();
-  ARP_Note_Length =  data[51].toInt();
-  Filter_Type =  data[52].toInt();
-  KeyTrack_Switch =  data[53].toInt();
-  Legato = data[54].toInt(); 
-  DelayFX = data[55].toInt(); 
-  Phaser_Switch = data[56].toInt(); 
-  Wheel_Mod_1_Select = data[57].toInt(); 
-  Wheel_Mod_2_Select = data[58].toInt(); 
-  Wheel_Mod_3_Select = data[59].toInt(); 
-  Vibr_Amp_LFO_Wave = data[60].toInt(); 
-  Portamento_SW = data[61].toInt(); 
+  ARP_Mode = data[50].toInt();
+  ARP_Note_Length = data[51].toInt();
+  Filter_Type = data[52].toInt();
+  KeyTrack_Switch = data[53].toInt();
+  Legato = data[54].toInt();
+  DelayFX = data[55].toInt();
+  Phaser_Switch = data[56].toInt();
+  Wheel_Mod_1_Select = data[57].toInt();
+  Wheel_Mod_2_Select = data[58].toInt();
+  Wheel_Mod_3_Select = data[59].toInt();
+  Vibr_Amp_LFO_Wave = data[60].toInt();
+  Portamento_SW = data[61].toInt();
+  Octave_Shift = data[62].toInt();
+  pedalMode = data[63].toInt();
 
   oldPortamento = Portamento;
 
@@ -1871,8 +1908,8 @@ String getCurrentPatchData() {
          + "," + String(PWM_Rate) + "," + String(PitchBend_Depth) + "," + String(Filter_LFO_Depth) + "," + String(LFO_Velocity_Depth) + "," + String(Amp_LFO_Depth) + "," + String(PWM_Depth_LFO)
          + "," + String(Filter_LFO_Wave) + "," + String(Filter_LFO_Rate) + "," + String(Amp_LFO_Rate) + "," + String(Arpeggiator_Switch) + "," + String(ARP_Hold) + "," + String(ARP_Octave_Plus)
          + "," + String(ARP_Ext_Sync) + "," + String(ARP_Mode) + "," + String(ARP_Note_Length) + "," + String(Filter_Type) + "," + String(KeyTrack_Switch) + "," + String(Legato)
-         + "," + String(DelayFX) + "," + String(Phaser_Switch)+ "," + String(Wheel_Mod_1_Select) + "," + String(Wheel_Mod_2_Select) + "," + String(Wheel_Mod_3_Select) + "," + String(Vibr_Amp_LFO_Wave)
-         + "," + String(Portamento_SW);
+         + "," + String(DelayFX) + "," + String(Phaser_Switch) + "," + String(Wheel_Mod_1_Select) + "," + String(Wheel_Mod_2_Select) + "," + String(Wheel_Mod_3_Select) + "," + String(Vibr_Amp_LFO_Wave)
+         + "," + String(Portamento_SW) + "," + String(Octave_Shift) + "," + String(pedalMode);
 }
 
 void midiCCOut(byte cc, byte value) {
